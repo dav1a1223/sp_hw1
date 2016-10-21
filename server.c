@@ -62,6 +62,12 @@ int main(int argc, char** argv) {
     int file_fd;  // fd for file that we open for reading
     char buf[512];
     int buf_len;
+    struct timeval tv;
+    fd_set readfds, writefds, exceptfds;
+
+    FD_ZERO(&readfds);
+    FD_ZERO(&writefds);
+    FD_ZERO(&exceptfds);
 
     // Parse args.
     if (argc != 2) {
@@ -84,11 +90,21 @@ int main(int argc, char** argv) {
     requestP[svr.listen_fd].conn_fd = svr.listen_fd;
     strcpy(requestP[svr.listen_fd].host, svr.hostname);
 
+    FD_SET(0, &readfds);
+    FD_SET(1, &writefds);
+    FD_SET(2, &writefds);
+    FD_SET(svr.listen_fd, &readfds);
+
     // Loop for handling connections
     fprintf(stderr, "\nstarting on %.80s, port %d, fd %d, maxconn %d...\n", svr.hostname, svr.port, svr.listen_fd, maxfd);
 
     while (1) {
         // TODO: Add IO multiplexing
+        tv.tv_sec = 5;
+        if(select(svr.listen_fd, &readfds, &writefds, &exceptfds, &tv) == -1){
+          ERR_EXIT("select error");
+        }
+        // TODO: FD_ISSET的判斷，不知道涵蓋要多少
         // Check new connection
         clilen = sizeof(cliaddr);
         conn_fd = accept(svr.listen_fd, (struct sockaddr*)&cliaddr, (socklen_t*)&clilen);
