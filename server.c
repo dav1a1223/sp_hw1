@@ -19,6 +19,9 @@
 #define write_lock(fd, offset, whence, len) \
   lock_reg((fd), F_SETLK, F_WRLCK, (offset), (whence), (len));
 
+#define unlock(fd) \
+  lock_reg((fd), F_SETLK, F_UNLCK, 0, SEEK_SET, 0);
+
 int lock_reg(int fd, int cmd, int type, off_t offset, int whence, off_t len){
   struct flock lock;
 
@@ -155,18 +158,20 @@ int main(int argc, char** argv) {
                 fprintf(stderr, "Opening file [%s]\n", requestP[conn_fd].filename);
                 // TODO: Add lock
                 // TODO: check if the request should be rejected.
+                read_lock(requestP[conn_fd].conn_fd, 0, SEEK_SET, 0);
                 write(requestP[conn_fd].conn_fd, accept_header, sizeof(accept_header));
                 file_fd = open(requestP[conn_fd].filename, O_RDONLY, 0);
-                }
+            }
             if (ret == 0) break;
             while (1) {
-            ret = read(file_fd, buf, sizeof(buf));
-            if (ret < 0) {
-                fprintf(stderr, "Error when reading file %s\n", requestP[conn_fd].filename);
-                break;
-            } else if (ret == 0) break;
-            write(requestP[conn_fd].conn_fd, buf, ret);
-        }
+              ret = read(file_fd, buf, sizeof(buf));
+              if (ret < 0) {
+                  fprintf(stderr, "Error when reading file %s\n", requestP[conn_fd].filename);
+                  break;
+              } else if (ret == 0) break;
+              write(requestP[conn_fd].conn_fd, buf, ret);
+            }
+            unlock(requestP[conn_fd].conn_fd);
         fprintf(stderr, "Done reading file [%s]\n", requestP[conn_fd].filename);
 #endif
 
